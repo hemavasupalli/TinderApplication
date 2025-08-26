@@ -1,0 +1,8 @@
+npm init
+npm i express
+sudo npm i -g nodemon
+app.use - first parameter (request handler)
+else api call
+
+
+git init
