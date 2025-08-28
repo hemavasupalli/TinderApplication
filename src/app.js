@@ -4,8 +4,12 @@ const app = express();
 const User = require("./models/user");
 const { validateSignUpData } = require("./utils/validations");
 const bcrypt = require("bcrypt");
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken")
+
 //middleware tp convert json to javascript object
 app.use(express.json());
+app.use(cookieParser());
 
 app.post("/signup", async (req, res) => {
   //creatung new instance of user model
@@ -34,13 +38,35 @@ app.post("/login", async (req, res) => {
       throw new Error("Invalid Credentials");
     }
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
-    if (!isPasswordCorrect) {
-      throw new Error("Invalid Credentials");
+    if (isPasswordCorrect) {
+
+    const token = await jwt.sign({_id: user._id},"Hema@1234")
+      res.cookie("token", token);
+      res.send("Logged in succesfully");
     } else {
-      res.send("Loginsuccesfully");
+      throw new Error("Invalid Credentials");
     }
   } catch (err) {
     res.status(400).send("Error:  " + err.message);
+  }
+});
+app.get("/profile", async (req, res) => {
+  try {
+    const cookie = req.cookies;
+    const {token} = cookie;
+    if(!token){
+      throw new Error("invalid token")
+    }
+    const decodedMsg = await jwt.verify(token,"Hema@1234")
+    const {_id}= decodedMsg
+    const user = await User.findById(_id)
+    if(!user){
+      throw new Error("user doesnt exist")
+
+    }
+    res.send(user);
+  } catch (err) {
+    res.status(400).send("Error: " + err.message);
   }
 });
 //get user by email
@@ -110,7 +136,6 @@ app.patch("/user/:userId", async (req, res) => {
       returnDocument: "before",
       runValidators: true,
     });
-    console.log("hema", user);
     res.send("user updated");
   } catch (err) {
     res.status(400).send("Error: " + err.message);
