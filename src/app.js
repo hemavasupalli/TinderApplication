@@ -5,7 +5,8 @@ const User = require("./models/user");
 const { validateSignUpData } = require("./utils/validations");
 const bcrypt = require("bcrypt");
 const cookieParser = require("cookie-parser");
-const jwt = require("jsonwebtoken")
+const jwt = require("jsonwebtoken");
+const { userAuth} = require("./middlewares/auth")
 
 //middleware tp convert json to javascript object
 app.use(express.json());
@@ -39,9 +40,8 @@ app.post("/login", async (req, res) => {
     }
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
     if (isPasswordCorrect) {
-
-    const token = await jwt.sign({_id: user._id},"Hema@1234")
-      res.cookie("token", token);
+      const token = await jwt.sign({ _id: user._id }, "Hema@1234" , {expiresIn:"1d"});
+      res.cookie("token", token ,{expires : new Date(Date.now() * 3600000)});
       res.send("Logged in succesfully");
     } else {
       throw new Error("Invalid Credentials");
@@ -50,21 +50,9 @@ app.post("/login", async (req, res) => {
     res.status(400).send("Error:  " + err.message);
   }
 });
-app.get("/profile", async (req, res) => {
+app.get("/profile",userAuth, async (req, res) => {
   try {
-    const cookie = req.cookies;
-    const {token} = cookie;
-    if(!token){
-      throw new Error("invalid token")
-    }
-    const decodedMsg = await jwt.verify(token,"Hema@1234")
-    const {_id}= decodedMsg
-    const user = await User.findById(_id)
-    if(!user){
-      throw new Error("user doesnt exist")
-
-    }
-    res.send(user);
+    res.send(req.user);
   } catch (err) {
     res.status(400).send("Error: " + err.message);
   }
@@ -141,6 +129,11 @@ app.patch("/user/:userId", async (req, res) => {
     res.status(400).send("Error: " + err.message);
   }
 });
+
+app.post("/sendConnectionReq",userAuth, async(req,res)=>{
+  const user = req.user;
+  res.send(user.firstName +" sent request")
+})
 
 connectDB()
   .then(() => {
