@@ -10,6 +10,7 @@
   "author": "Hema vasupalli",
   "license": "ISC",
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "express": "^5.1.0",
     "mongodb": "^6.18.0",
     "mongoose": "^8.18.0",

@@ -2,19 +2,46 @@ const express = require("express");
 const connectDB = require("./config/database");
 const app = express();
 const User = require("./models/user");
-
+const { validateSignUpData } = require("./utils/validations");
+const bcrypt = require("bcrypt");
 //middleware tp convert json to javascript object
 app.use(express.json());
 
 app.post("/signup", async (req, res) => {
   //creatung new instance of user model
   try {
-    const user = new User(req?.body);
+    validateSignUpData(req);
+    const { firstName, lastName, emailId, password } = req.body;
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = new User({
+      firstName,
+      lastName,
+      emailId,
+      password: passwordHash,
+    });
     await user.save();
     res.send("user added succesfully");
-  } catch(err) {
+  } catch (err) {
     res.status(400).send("Error saving:  " + err.message);
-}
+  }
+});
+//login
+app.post("/login", async (req, res) => {
+  try {
+    const { emailId, password } = req.body;
+    const user = await User.findOne({ emailId: emailId });
+    if (!user) {
+      throw new Error("Invalid Credentials");
+    }
+    const isPasswordCorrect = await bcrypt.compare(password, user.password);
+    if (!isPasswordCorrect) {
+      throw new Error("Invalid Credentials");
+    } else {
+      res.send("Loginsuccesfully");
+    }
+  } catch (err) {
+    res.status(400).send("Error:  " + err.message);
+  }
 });
 //get user by email
 
@@ -32,7 +59,7 @@ app.get("/user", async (req, res) => {
     }
   } catch (err) {
     res.status(400).send("Error: " + err.message);
-}
+  }
 });
 //feed api
 app.get("/feed", async (req, res) => {
@@ -45,7 +72,7 @@ app.get("/feed", async (req, res) => {
     }
   } catch (err) {
     res.status(400).send("Error: " + err.message);
-}
+  }
 });
 
 //delete user
@@ -57,7 +84,7 @@ app.delete("/user", async (req, res) => {
     res.send("user deleted");
   } catch (err) {
     res.status(400).send("Error: " + err.message);
-}
+  }
 });
 
 //patch or update  user
@@ -65,7 +92,13 @@ app.patch("/user/:userId", async (req, res) => {
   const userId = req.params?.userId;
   const data = req.body;
   try {
-    const ALLOWED_UPDATES = ["gender", "skills", "about", "password","lastName"];
+    const ALLOWED_UPDATES = [
+      "gender",
+      "skills",
+      "about",
+      "password",
+      "lastName",
+    ];
     const isUpdatesAllowed = Object.keys(data).every((k) => {
       ALLOWED_UPDATES.includes(k);
     });
@@ -81,7 +114,7 @@ app.patch("/user/:userId", async (req, res) => {
     res.send("user updated");
   } catch (err) {
     res.status(400).send("Error: " + err.message);
-}
+  }
 });
 
 connectDB()
