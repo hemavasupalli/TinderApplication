@@ -3,37 +3,75 @@ const connectDB = require("./config/database");
 const app = express();
 const User = require("./models/user");
 
-// app.use("/test",(req,res)=>{
-//     res.send("Hi ram ")
-// })
+//middleware tp convert json to javascript object
+app.use(express.json());
 
 app.post("/signup", async (req, res) => {
-  const userObj = {
-    firstName: 11,
-    lastName: "vasupalli",
-    emailId: "anil@gmail.com",
-    password: "anil@1234",
-    hjel:"7"
-  };
   //creatung new instance of user model
-  const user = new User(userObj);
+  const user = new User(req?.body);
   try {
     await user.save();
-    res.send("user added");
+    res.send("user added succesfully");
   } catch (err) {
     res.status(400).send("error saving the user", err.message);
   }
 });
+//get user by email
 
-// app.get("/users",async(req,res)=>{
-//     try{
-//         await user.save();
-//     res.send("user added")
-//     }catch(err){
-//         res.status(400).send("error saving the user", err.message)
+app.get("/user", async (req, res) => {
+  const email = req.body.emailId;
+  try {
+    // find will find all documents
+    // findone will find one documents
 
-//     }
-// })
+    const user = await User.findOne({ emailId: email });
+    if (!user) {
+      res.status(404).send("user not found");
+    } else {
+      res.send(user);
+    }
+  } catch (err) {
+    res.status(400).send("error getting the user", err.message);
+  }
+});
+//feed api
+app.get("/feed", async (req, res) => {
+  try {
+    const user = await User.find({});
+    if (!user) {
+      res.status(404).send("No users exists");
+    } else {
+      res.send(user);
+    }
+  } catch (err) {
+    res.status(400).send("error getting the user", err.message);
+  }
+});
+
+//delete user
+app.delete("/user", async (req, res) => {
+  const userId = req.body.userId;
+  try {
+    const user = await User.findByIdAndDelete(userId);
+
+    res.send("user deleted");
+  } catch (err) {
+    res.status(400).send("something went wrng");
+  }
+});
+
+//patch or update  user
+app.patch("/user", async (req, res) => {
+  const userId = req.body.userId;
+  const data = req.body;
+  try {
+    const user = await User.findByIdAndUpdate({ _id: userId }, data ,{returnDocument :"nefore"});
+console.log("hema",user)
+    res.send("user updated");
+  } catch (err) {
+    res.status(400).send("something went wrng");
+  }
+});
 
 connectDB()
   .then(() => {
