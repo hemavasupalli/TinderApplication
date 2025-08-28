@@ -8,13 +8,13 @@ app.use(express.json());
 
 app.post("/signup", async (req, res) => {
   //creatung new instance of user model
-  const user = new User(req?.body);
   try {
+    const user = new User(req?.body);
     await user.save();
     res.send("user added succesfully");
-  } catch (err) {
-    res.status(400).send("error saving the user", err.message);
-  }
+  } catch(err) {
+    res.status(400).send("Error saving:  " + err.message);
+}
 });
 //get user by email
 
@@ -31,8 +31,8 @@ app.get("/user", async (req, res) => {
       res.send(user);
     }
   } catch (err) {
-    res.status(400).send("error getting the user", err.message);
-  }
+    res.status(400).send("Error: " + err.message);
+}
 });
 //feed api
 app.get("/feed", async (req, res) => {
@@ -44,8 +44,8 @@ app.get("/feed", async (req, res) => {
       res.send(user);
     }
   } catch (err) {
-    res.status(400).send("error getting the user", err.message);
-  }
+    res.status(400).send("Error: " + err.message);
+}
 });
 
 //delete user
@@ -56,8 +56,8 @@ app.delete("/user", async (req, res) => {
 
     res.send("user deleted");
   } catch (err) {
-    res.status(400).send("something went wrng");
-  }
+    res.status(400).send("Error: " + err.message);
+}
 });
 
 //patch or update  user
@@ -80,8 +80,8 @@ app.patch("/user/:userId", async (req, res) => {
     console.log("hema", user);
     res.send("user updated");
   } catch (err) {
-    res.status(400).send("soething went wrng " + err.message);
-  }
+    res.status(400).send("Error: " + err.message);
+}
 });
 
 connectDB()
