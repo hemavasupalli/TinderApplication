@@ -73,7 +73,6 @@ authRouter.post("/forgotPassword", async (req, res) => {
 
     res.send("Password has been reset");
   } catch (err) {
-    console.error(err);
     res.status(500).send("Server Error: " + err.message);
   }
 });
