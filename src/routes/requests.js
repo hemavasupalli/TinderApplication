@@ -53,7 +53,7 @@ requestsRouter.post(
       const { status, requestId } = req.params;
       const ALlOWED_STATUS = ["accepted", "rejected"];
       if (!ALlOWED_STATUS.includes(status)) {
-        res.status(500).json({ message: "status is not valid " + status });
+       return res.status(500).json({ message: "status is not valid " + status });
       }
       const connectionRequest = await ConnectionRequest.findOne({
         _id: requestId,
@@ -61,7 +61,7 @@ requestsRouter.post(
         status: "interested",
       });
       if (!connectionRequest) {
-        res.status(500).json({ message: "connection doesnt exist " });
+        return res.status(500).json({ message: "connection doesnt exist " });
       }
 
       connectionRequest.status = status;
