@@ -1,8 +1,13 @@
 const express = require("express");
 const authRouter = express.Router();
-const { validateSignUpData } = require("../utils/validations");
+const {
+  validateSignUpData,
+  validateForgotPasswordData,
+} = require("../utils/validations");
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
+const { userAuth } = require("../middlewares/auth");
+authRouter.use(express.json());
 
 authRouter.post("/signup", async (req, res) => {
   //creating new instance of user model
@@ -48,4 +53,29 @@ authRouter.post("/logout", async (req, res) => {
     .cookie("token", null, { expires: new Date(Date.now()) })
     .send("logout successfull");
 });
+authRouter.post("/forgotPassword", async (req, res) => {
+  try {
+    console.log(req.body);
+    const { emailId, password } = req.body;
+    validateForgotPasswordData(req);
+
+    const user = await User.findOne({ emailId });
+    if (!user) {
+      return res.status(404).send("User not found");
+    }
+    const isPasswordSameAsOld = await bcrypt.compare(password, user.password);
+    if (isPasswordSameAsOld) {
+      throw new Error("You cannot use previous password");
+    }
+    const passwordHashed = await bcrypt.hash(password, 10);
+    user.password = passwordHashed;
+    await user.save();
+
+    res.send("Password has been reset");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Server Error: " + err.message);
+  }
+});
+
 module.exports = { authRouter };

@@ -12,6 +12,15 @@ const validateSignUpData = (req) => {
     throw new Error("enter strong password");
   }
 };
+const validateForgotPasswordData = (req) => {
+  const { emailId, password } = req.body;
+  if (!validator.isStrongPassword(password)) {
+    throw new Error("enter strong password");
+  }
+  if (!emailId || !password) {
+    throw new Error("Email and password are required");
+  }
+};
 
 const validateProfileEditData =(req)=>{
   const ALLOWED_EDITS = [
@@ -27,5 +36,5 @@ const validateProfileEditData =(req)=>{
   });
   return isUpdatesAllowed;
 }
-module.exports = { validateSignUpData,validateProfileEditData };
+module.exports = { validateSignUpData,validateProfileEditData ,validateForgotPasswordData};
 
