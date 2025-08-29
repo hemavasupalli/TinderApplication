@@ -11,9 +11,9 @@ requestsRouter.post("/send/:status/:toUserId", userAuth, async (req, res) => {
     const toUserId = req.params?.toUserId;
     const status = req.params?.status;
     const ALLOWED_STATUS = ["interested", "ignored"];
-    const toUser = await User.findById(toUserId );
+    const toUser = await User.findById(toUserId);
     if (!toUser) {
-     return res.status(500).json({
+      return res.status(500).json({
         message: "user doesnt exist ",
       });
     }
@@ -44,5 +44,33 @@ requestsRouter.post("/send/:status/:toUserId", userAuth, async (req, res) => {
     res.status(500).send("Server Error: " + err.message);
   }
 });
+requestsRouter.post(
+  "/review/:status/:requestId",
+  userAuth,
+  async (req, res) => {
+    try {
+      const loggedInUser = req.user;
+      const { status, requestId } = req.params;
+      const ALlOWED_STATUS = ["accepted", "rejected"];
+      if (!ALlOWED_STATUS.includes(status)) {
+        res.status(500).json({ message: "status is not valid " + status });
+      }
+      const connectionRequest = await ConnectionRequest.findOne({
+        _id: requestId,
+        toUserId: loggedInUser._id,
+        status: "interested",
+      });
+      if (!connectionRequest) {
+        res.status(500).json({ message: "connection doesnt exist " });
+      }
+
+      connectionRequest.status = status;
+      await connectionRequest.save();
+      res.send("requested acepted");
+    } catch (err) {
+      res.status(500).send("Server Error: " + err.message);
+    }
+  }
+);
 
 module.exports = { requestsRouter };
