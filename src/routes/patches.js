@@ -23,9 +23,9 @@
 //         "lastName",
 //       ];
 //       const isUpdatesAllowed = Object.keys(data).every((k) => {
-//         ALLOWED_UPDATES.includes(k);
+//         return ALLOWED_UPDATES.includes(k);
 //       });
-//       if (isUpdatesAllowed) {
+//       if (!isUpdatesAllowed) {
 //         throw new Error("user update not allowed");
 //       }
   

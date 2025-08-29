@@ -48,7 +48,7 @@ const userSchema = new Schema(
     photoUrl: {
       type: String,
     },
-    obout: {
+    about: {
       type: String,
       default: "this is a default about ",
     },
