@@ -33,15 +33,15 @@ authRouter.post("/login", async (req, res) => {
     const { emailId, password } = req.body;
     const user = await User.findOne({ emailId: emailId });
     if (!user) {
-      throw new Error("Invalid Credentials");
+      throw new Error("Invalid Email Id");
     }
     const isPasswordCorrect = await user.validatePassword(password);
     if (isPasswordCorrect) {
       const token = await user.getJWT();
       res.cookie("token", token, { expires: new Date(Date.now() + 3600000) });
-      res.send("Logged in succesfully");
+      res.send(user);
     } else {
-      throw new Error("Invalid Credentials");
+      throw new Error("Invalid Password");
     }
   } catch (err) {
     res.status(400).send("Error:  " + err.message);
@@ -71,7 +71,7 @@ authRouter.post("/forgotPassword", async (req, res) => {
     user.password = passwordHashed;
     await user.save();
 
-    res.send("Password has been reset");
+    res.json({message:"password has been reset", data: user});
   } catch (err) {
     res.status(500).send("Server Error: " + err.message);
   }
