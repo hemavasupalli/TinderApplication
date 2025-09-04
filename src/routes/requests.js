@@ -15,11 +15,13 @@ requestsRouter.post("/send/:status/:toUserId", userAuth, async (req, res) => {
     if (!toUser) {
       return res.status(500).json({
         message: "user doesnt exist ",
+        data: toUserId,
       });
     }
     if (!ALLOWED_STATUS.includes(status)) {
       return res.status(500).json({
         message: "invalid tatus Type: " + status,
+        data: toUserId,
       });
     }
     const existingConnectionReq = await ConnectionRequest.findOne({
@@ -39,7 +41,7 @@ requestsRouter.post("/send/:status/:toUserId", userAuth, async (req, res) => {
       status,
     });
     await newConnectionRequest.save();
-    res.send(user.firstName + " sent request");
+    res.json({message: user.firstName + " sent request" , data: newConnectionRequest.fromUserId });
   } catch (err) {
     res.status(500).send("Server Error: " + err.message);
   }
@@ -66,7 +68,7 @@ requestsRouter.post(
 
       connectionRequest.status = status;
       await connectionRequest.save();
-      res.send("requested acepted");
+      res.json({message:"requested accepted",data:connectionRequest });
     } catch (err) {
       res.status(500).send("Server Error: " + err.message);
     }

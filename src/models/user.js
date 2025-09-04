@@ -47,13 +47,10 @@ const userSchema = new Schema(
     },
     photoUrl: {
       type: String,
-      default: "https://i.pinimg.com/474x/18/b9/ff/18b9ffb2a8a791d50213a9d595c4dd52.jpg",
-
+default:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ0yjZW2YKxsfv6JFUIkysx8WOpJRsOFSbAobQjQIGewrP-G0ZehZp0z_WathGC8NjlPMM&usqp=CAU"
     },
     about: {
-      type: String,
-      default: "this is a default about ",
-    },
+      type: String    },
     skills: {
       type: [String],
     },
