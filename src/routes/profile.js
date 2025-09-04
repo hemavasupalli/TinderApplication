@@ -46,7 +46,7 @@ profileRouter.get("/user", async (req, res) => {
   }
 });
 //feed api
-profileRouter.get("/feed", async (req, res) => {
+profileRouter.get("/feed",userAuth, async (req, res) => {
   try {
     const user = await User.find({});
     if (!user) {
