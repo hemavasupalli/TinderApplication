@@ -7,6 +7,7 @@ const {
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
 const { userAuth } = require("../middlewares/auth");
+const { dummyUsers } = require("./dummy");
 authRouter.use(express.json());
 
 authRouter.post("/signup", async (req, res) => {
@@ -30,6 +31,53 @@ authRouter.post("/signup", async (req, res) => {
     res.status(400).send("Error saving:  " + err.message);
   }
 });
+
+authRouter.post("/signupAll", async (req, res) => {
+  try {
+    validateSignUpData(req);
+    const { firstName, lastName, emailId, password, age, gender, about, photoUrl } = req.body;
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const user = new User({
+      firstName,
+      lastName,
+      emailId,
+      password: passwordHash,
+      age,
+      gender,
+      about,
+      photoUrl,
+      location,
+    });
+
+    const savedUser = await user.save();
+    const token = await savedUser.getJWT();
+
+    res.cookie("token", token, { expires: new Date(Date.now() + 3600000) });
+    res.json({ message: "user added successfully", data: savedUser });
+  } catch (err) {
+    res.status(400).send("Error saving: " + err.message);
+  }
+});
+
+authRouter.post("/seedUsers", async (req, res) => {
+  try {
+    const usersWithHashedPassword = await Promise.all(
+      dummyUsers.map(async (user) => {
+        const passwordHash = await bcrypt.hash(user.password, 10);
+        return { ...user, password: passwordHash };
+      })
+    );
+
+    await User.insertMany(usersWithHashedPassword);
+
+    res.json({ message: "50 users added successfully" });
+  } catch (err) {
+    res.status(500).send("Error seeding users: " + err.message);
+  }
+});
+
 
 authRouter.post("/login", async (req, res) => {
   try {

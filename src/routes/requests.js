@@ -75,4 +75,54 @@ requestsRouter.post(
   }
 );
 
+requestsRouter.post("/sendAll/:status", userAuth, async (req, res) => {
+  try {
+    const user = req.user;
+    const fromUserId = user._id;
+    const status = req.params?.status;
+    const ALLOWED_STATUS = ["interested", "ignored"];
+
+    if (!ALLOWED_STATUS.includes(status)) {
+      return res.status(400).json({
+        message: "Invalid status type: " + status,
+      });
+    }
+
+    // fetch all users except logged in user
+    const allUsers = await User.find({ _id: { $ne: fromUserId } });
+console.log(allUsers);
+    if (!allUsers.length) {
+      return res.status(404).json({ message: "No users found to send requests" });
+    }
+
+    let createdRequests = [];
+
+    for (const toUser of allUsers) {
+      const existingConnectionReq = await ConnectionRequest.findOne({
+        $or: [
+          { fromUserId, toUserId: toUser._id },
+          { fromUserId: toUser._id, toUserId: fromUserId },
+        ],
+      });
+
+      if (!existingConnectionReq) {
+        const newConnectionRequest = new ConnectionRequest({
+          fromUserId,
+          toUserId: toUser._id,
+          status,
+        });
+        await newConnectionRequest.save();
+        createdRequests.push(newConnectionRequest);
+      }
+    }
+
+    res.json({
+      message: `Sent ${status} requests to ${createdRequests.length} users`,
+      data: createdRequests,
+    });
+  } catch (err) {
+    res.status(500).send("Server Error: " + err.message);
+  }
+});
+
 module.exports = { requestsRouter };
