@@ -59,7 +59,7 @@ default:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ0yjZW2YKxsfv6JFU
 );
 userSchema.methods.getJWT = async function () {
   const user = this;
-  const token = await jwt.sign({ _id: user._id }, "Hema@1234", {
+  const token = await jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
     expiresIn: "1d",
   });
 

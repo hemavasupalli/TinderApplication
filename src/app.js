@@ -7,7 +7,7 @@ const {authRouter}  = require("./routes/auth");
 const {profileRouter} = require("./routes/profile");
 const {requestsRouter}  = require("./routes/requests");
 const { userRouter } = require("./routes/user");
-
+require("dotenv").config();
 //middleware tp convert json to javascript object
 app.use(cors(
   {
@@ -27,7 +27,7 @@ app.use("/", userRouter);
 connectDB()
   .then(() => {
     console.log("Database successfully connected");
-    app.listen(3000, () => {
+    app.listen(process.env.PORT, () => {
       console.log("server started");
     });
   })
