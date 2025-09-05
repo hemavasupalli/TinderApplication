@@ -3,6 +3,8 @@ const requestsRouter = express.Router();
 const { userAuth } = require("../middlewares/auth");
 const ConnectionRequest = require("../models/connections");
 const User = require("../models/user");
+const sendEmail = require("../utils/sendEmail.js");
+
 
 requestsRouter.post("/send/:status/:toUserId", userAuth, async (req, res) => {
   try {
@@ -11,19 +13,25 @@ requestsRouter.post("/send/:status/:toUserId", userAuth, async (req, res) => {
     const toUserId = req.params?.toUserId;
     const status = req.params?.status;
     const ALLOWED_STATUS = ["interested", "ignored"];
+
+    // Validate user
     const toUser = await User.findById(toUserId);
     if (!toUser) {
-      return res.status(500).json({
-        message: "user doesnt exist ",
+      return res.status(404).json({
+        message: "User does not exist",
         data: toUserId,
       });
     }
+
+    // Validate status
     if (!ALLOWED_STATUS.includes(status)) {
-      return res.status(500).json({
-        message: "invalid tatus Type: " + status,
+      return res.status(400).json({
+        message: "Invalid status type: " + status,
         data: toUserId,
       });
     }
+
+    // Check existing connection
     const existingConnectionReq = await ConnectionRequest.findOne({
       $or: [
         { fromUserId, toUserId },
@@ -31,21 +39,37 @@ requestsRouter.post("/send/:status/:toUserId", userAuth, async (req, res) => {
       ],
     });
     if (existingConnectionReq) {
-      return res.status(500).json({
-        message: "request already exists",
-      });
+      return res.status(400).json({ message: "Request already exists" });
     }
+
+    // Create new connection request
     const newConnectionRequest = new ConnectionRequest({
       fromUserId,
       toUserId,
       status,
     });
+    try {
+      const emailRes = await sendEmail.run();
+      console.log("SES email sent:", emailRes);
+    } catch (emailErr) {
+      console.error("SES email failed:", emailErr);
+    }
     await newConnectionRequest.save();
-    res.json({message: user.firstName + " sent request" , data: newConnectionRequest.fromUserId });
+
+    // Send email (optional SES errors won't break the route)
+  
+
+    res.json({
+      message: `${user.firstName} sent request`,
+      data: newConnectionRequest,
+    });
+
   } catch (err) {
+    console.error(err);
     res.status(500).send("Server Error: " + err.message);
   }
 });
+
 requestsRouter.post(
   "/review/:status/:requestId",
   userAuth,

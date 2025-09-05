@@ -8,6 +8,7 @@ const {profileRouter} = require("./routes/profile");
 const {requestsRouter}  = require("./routes/requests");
 const { userRouter } = require("./routes/user");
 require("dotenv").config();
+require("./utils/cronJob");
 //middleware tp convert json to javascript object
 app.use(cors(
   {
