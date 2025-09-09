@@ -3,7 +3,7 @@ const userRouter = express.Router();
 const { userAuth } = require("../middlewares/auth");
 const ConnectionRequest = require("../models/connections");
 const User = require("../models/user");
-const USER_DATA = "firstName lastName age gender photoUrl about skills";
+const USER_DATA = "firstName lastName age gender photoUrl about skills isVerified  isOnline lastSeen";
 //pending
 userRouter.get("/user/requests", userAuth, async (req, res) => {
   try {
@@ -12,7 +12,6 @@ userRouter.get("/user/requests", userAuth, async (req, res) => {
       toUserId: loggedInUser._id,
       status: "interested",
     }).populate("fromUserId", USER_DATA);
-    console.log(connectionRequests);
     res.json({
       message: "data fetched successfully",
       data: connectionRequests,
@@ -41,7 +40,6 @@ userRouter.get("/user/connections", userAuth, async (req, res) => {
       }
       return row.fromUserId;
     });
-    console.log(data);
     res.json({
       message: "data fetched successfully",
       data: data,

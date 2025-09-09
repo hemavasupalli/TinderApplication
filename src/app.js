@@ -7,6 +7,10 @@ const {authRouter}  = require("./routes/auth");
 const {profileRouter} = require("./routes/profile");
 const {requestsRouter}  = require("./routes/requests");
 const { userRouter } = require("./routes/user");
+const { chatRouter } = require("./routes/chat");
+const http = require("http");
+const { initiateSocket } = require("./utils/socket");
+
 require("dotenv").config();
 require("./utils/cronJob");
 //middleware tp convert json to javascript object
@@ -22,13 +26,15 @@ app.use("/", authRouter);
 app.use("/", profileRouter);
 app.use("/", requestsRouter);
 app.use("/", userRouter);
+app.use("/", chatRouter);
 
 
-
+const server = http.createServer(app);
+initiateSocket(server);
 connectDB()
   .then(() => {
     console.log("Database successfully connected");
-    app.listen(process.env.PORT, () => {
+    server.listen(process.env.PORT, () => {
       console.log("server started");
     });
   })

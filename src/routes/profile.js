@@ -3,10 +3,11 @@ const profileRouter = express.Router();
 const User = require("../models/user");
 const { userAuth } = require("../middlewares/auth");
 const { validateProfileEditData } = require("../utils/validations");
+const { sanitizeUser } = require("../utils/utilFunctions");
 
 profileRouter.get("/profile/view", userAuth, async (req, res) => {
   try {
-    res.send(req.user);
+    res.send(sanitizeUser(req.user));
   } catch (err) {
     res.status(400).send("Error: " + err.message);
   }
@@ -22,9 +23,15 @@ profileRouter.patch("/profile/edit", userAuth, async (req, res) => {
       loggedInUser[key] = req.body[key];
     });
     await loggedInUser.save();
-    res.json({message:"user updated",data: loggedInUser });
+    res.json({message:"user updated",data: sanitizeUser(loggedInUser) });
   } catch (err) {
-    res.status(400).send("Error: " + err.message);
+    if (err.name === "ValidationError") {
+      const errors = Object.values(err.errors).map(e => e.message);
+      return res.status(400).json({ 
+        message: errors.join(", ")  
+      });
+    }
+    
   }
 });
 //get user by email
@@ -39,7 +46,7 @@ profileRouter.get("/user", async (req, res) => {
     if (!user) {
       res.status(404).send("user not found");
     } else {
-      res.send(user);
+      res.send(sanitizeUser(user));
     }
   } catch (err) {
     res.status(400).send("Error: " + err.message);
@@ -52,7 +59,7 @@ profileRouter.get("/feed",userAuth, async (req, res) => {
     if (!user) {
       res.status(404).send("No users exists");
     } else {
-      res.send(user);
+      res.send(sanitizeUser(user));
     }
   } catch (err) {
     res.status(400).send("Error: " + err.message);

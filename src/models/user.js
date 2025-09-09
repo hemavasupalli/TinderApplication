@@ -21,7 +21,7 @@ const userSchema = new Schema(
       unique: true,
       validate(value) {
         if (!validator.isEmail(value)) {
-          throw new Error("enter correct email");
+          throw new Error("Enter correct email");
         }
       },
     },
@@ -30,30 +30,45 @@ const userSchema = new Schema(
       required: true,
       validate(value) {
         if (!validator.isStrongPassword(value)) {
-          throw new Error("choose a strong password");
+          throw new Error("Choose a strong password");
         }
       },
     },
     age: {
       type: Number,
+      validate(value) {
+        if (value < 18 || value > 100) {
+          throw new Error("Age must be between 18 and 100");
+        }
+      },
     },
     gender: {
       type: String,
       validate(value) {
         if (!["Male", "Female", "Other"].includes(value)) {
-          throw new Error("gender is not valid");
+          throw new Error("Gender is not valid");
         }
       },
     },
     photoUrl: {
       type: String,
-default:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ0yjZW2YKxsfv6JFUIkysx8WOpJRsOFSbAobQjQIGewrP-G0ZehZp0z_WathGC8NjlPMM&usqp=CAU"
+      default:
+        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ0yjZW2YKxsfv6JFUIkysx8WOpJRsOFSbAobQjQIGewrP-G0ZehZp0z_WathGC8NjlPMM&usqp=CAU",
     },
     about: {
-      type: String    },
+      type: String,
+    },
     skills: {
       type: [String],
     },
+    lastSeen: { type: Date, default: null },
+    isOnline: { type: Boolean, default: false },
+    verified: { type: Boolean, default: false },
+
+    otp: { type: String },
+    otpExpiry: { type: Date },
+    otpAttempts: { type: Number, default: 0 }, // for OTP entry attempts
+    resendAttempts: { type: Number, default: 0 }, // for resend OTP attempts
   },
   { timestamps: true }
 );

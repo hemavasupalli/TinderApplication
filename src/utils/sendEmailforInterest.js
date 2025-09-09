@@ -1,7 +1,7 @@
 const { SendEmailCommand } = require("@aws-sdk/client-ses");
 const { sesClient } = require("./sesClient.js");
 
-const createSendEmailCommand = (toAddress, fromAddress) => {
+const createSendEmailCommand = (toAddress, fromAddress, senderName) => {
   const htmlBody = `
   <!DOCTYPE html>
   <html>
@@ -61,12 +61,12 @@ const createSendEmailCommand = (toAddress, fromAddress) => {
       <div class="header">Dev Tinder</div>
       <div class="content">
         <p>Hi there 👋,</p>
-        <p>Welcome to <strong>Dev Tinder</strong>! We’re excited to have you on board.</p>
-        <p>Click the button below to get started:</p>
+        <p><strong>${senderName}</strong> has shown interest in connecting with you on <strong>Dev Tinder</strong> ❤️.</p>
+        <p>Click below to check their profile and respond:</p>
         <p style="text-align:center;">
-          <a href="https://devtinder.hemavasupalli.ca" class="button">Get Started</a>
+          <a href="https://devtinder.hemavasupalli.ca" class="button">View Profile</a>
         </p>
-        <p>If you did not request this, you can safely ignore this email.</p>
+        <p>If you’re not interested, you can simply ignore this request.</p>
       </div>
       <div class="footer">
         © ${new Date().getFullYear()} Dev Tinder. All rights reserved.<br/>
@@ -89,29 +89,29 @@ const createSendEmailCommand = (toAddress, fromAddress) => {
         },
         Text: {
           Charset: "UTF-8",
-          Data: "Hi there, Welcome to Dev Tinder! Visit https://devtinder.hemavasupalli.ca to get started.",
+          Data: `${senderName} has shown interest in you on Dev Tinder! Visit https://devtinder.hemavasupalli.ca to view their profile.`,
         },
       },
       Subject: {
         Charset: "UTF-8",
-        Data: "Welcome to Dev Tinder 🚀",
+        Data: `${senderName} is interested in you on Dev Tinder ❤️`,
       },
     },
     Source: fromAddress,
   });
 };
 
-const run = async () => {
+const runInterest = async () => {
   const sendEmailCommand = createSendEmailCommand(
-    "Sailu314@gmail.com",
-    "support@hemavasupalli.ca"
+    "hemavasupalli12@gmail.com",
+    "support@hemavasupalli.ca" // must be verified in SES
+    
   );
 
   try {
     return await sesClient.send(sendEmailCommand);
   } catch (caught) {
     if (caught instanceof Error && caught.name === "MessageRejected") {
-      /** @type { import('@aws-sdk/client-ses').MessageRejected} */
       const messageRejectedError = caught;
       return messageRejectedError;
     }
@@ -119,4 +119,4 @@ const run = async () => {
   }
 };
 
-module.exports = { run };
+module.exports = { runInterest };

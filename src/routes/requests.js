@@ -4,6 +4,7 @@ const { userAuth } = require("../middlewares/auth");
 const ConnectionRequest = require("../models/connections");
 const User = require("../models/user");
 const sendEmail = require("../utils/sendEmail.js");
+//const sendEmail = require("../utils/sendEmailforInterest");
 
 
 requestsRouter.post("/send/:status/:toUserId", userAuth, async (req, res) => {
@@ -22,7 +23,6 @@ requestsRouter.post("/send/:status/:toUserId", userAuth, async (req, res) => {
         data: toUserId,
       });
     }
-
     // Validate status
     if (!ALLOWED_STATUS.includes(status)) {
       return res.status(400).json({
@@ -48,12 +48,13 @@ requestsRouter.post("/send/:status/:toUserId", userAuth, async (req, res) => {
       toUserId,
       status,
     });
+    if (status === "interested"){
     try {
       const emailRes = await sendEmail.run();
-      console.log("SES email sent:", emailRes);
     } catch (emailErr) {
       console.error("SES email failed:", emailErr);
     }
+  }
     await newConnectionRequest.save();
 
     // Send email (optional SES errors won't break the route)
@@ -114,7 +115,6 @@ requestsRouter.post("/sendAll/:status", userAuth, async (req, res) => {
 
     // fetch all users except logged in user
     const allUsers = await User.find({ _id: { $ne: fromUserId } });
-console.log(allUsers);
     if (!allUsers.length) {
       return res.status(404).json({ message: "No users found to send requests" });
     }
