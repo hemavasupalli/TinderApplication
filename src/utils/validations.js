@@ -37,5 +37,24 @@ const validateProfileEditData =(req)=>{
   });
   return isUpdatesAllowed;
 }
-module.exports = { validateSignUpData,validateProfileEditData ,validateForgotPasswordData};
+
+const   sanitizeUser=(user) =>{
+    if (!user) return null;
+  
+    return {
+      _id: user?._id,
+      firstName: user?.firstName,
+      lastName: user?.lastName,
+      emailId: user?.emailId,
+      age: user?.age,
+      gender: user?.gender,
+      about: user?.about,
+      photoUrl: user?.photoUrl,
+      skills: user?.skills,
+      verified: user?.verified,
+      lastSeen: user?.lastSeen,
+      isOnline: user?.isOnline,
+    };
+  }
+module.exports = { validateSignUpData,validateProfileEditData ,validateForgotPasswordData ,sanitizeUser};
 

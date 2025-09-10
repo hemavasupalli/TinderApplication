@@ -1,7 +1,9 @@
 const express = require("express");
 const authRouter = express.Router();
+require("dotenv").config();
 
 const { SendEmailCommand } = require("@aws-sdk/client-ses");
+
 const { sesClient } = require("../utils/sesClient.js");
 const {
   validateSignUpData,
@@ -12,10 +14,13 @@ const bcrypt = require("bcrypt");
 const { userAuth } = require("../middlewares/auth");
 const { dummyUsers } = require("./dummy");
 const {
-  emailParams,
+  emailParamsForOTP,
   emailParamsForSignup,
+} = require("../utils/emailParams.js");
+const {
+
   sanitizeUser,
-} = require("../utils/utilFunctions.js");
+} = require("../utils/validations.js");
 authRouter.use(express.json());
 
 // Signup
@@ -45,10 +50,11 @@ authRouter.post("/signup", async (req, res) => {
       otp,
       otpExpiry,
     });
-
+    const token = await user.getJWT();
+    res.cookie("token", token, { expires: new Date(Date.now() + 3600000) });
     await user.save();
     await sesClient.send(
-      new SendEmailCommand(emailParams(emailId, otp, firstName))
+      new SendEmailCommand(emailParamsForOTP(emailId, otp, firstName))
     );
 
     res.json({
@@ -114,13 +120,11 @@ authRouter.post("/verifyOTP", async (req, res) => {
       user.otpExpiry = undefined;
       user.otpAttempts = undefined;
       user.isOnline = true;
-
+      const token = await user.getJWT();
+      res.cookie("token", token, { expires: new Date(Date.now() + 3600000) });
       const savedUser = await user.save();
 
-      // Generate JWT only after verification
-      const token = await savedUser.getJWT();
-      res.cookie("token", token, { httpOnly: true, maxAge: 3600000 });
-
+  
       await sesClient.send(
         new SendEmailCommand(emailParamsForSignup(emailId, user.firstName))
       );

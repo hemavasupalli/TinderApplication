@@ -5,6 +5,8 @@ const ConnectionRequest = require("../models/connections");
 const User = require("../models/user");
 const USER_DATA = "firstName lastName age gender photoUrl about skills isVerified  isOnline lastSeen";
 //pending
+require("dotenv").config();
+
 userRouter.get("/user/requests", userAuth, async (req, res) => {
   try {
     const loggedInUser = req.user;

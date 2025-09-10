@@ -1,9 +1,11 @@
 const express = require("express");
 const profileRouter = express.Router();
 const User = require("../models/user");
+require("dotenv").config();
+
 const { userAuth } = require("../middlewares/auth");
 const { validateProfileEditData } = require("../utils/validations");
-const { sanitizeUser } = require("../utils/utilFunctions");
+const { sanitizeUser } = require("../utils/validations.js");
 
 profileRouter.get("/profile/view", userAuth, async (req, res) => {
   try {
@@ -25,13 +27,15 @@ profileRouter.patch("/profile/edit", userAuth, async (req, res) => {
     await loggedInUser.save();
     res.json({message:"user updated",data: sanitizeUser(loggedInUser) });
   } catch (err) {
+    console.error(err);
     if (err.name === "ValidationError") {
-      const errors = Object.values(err.errors).map(e => e.message);
-      return res.status(400).json({ 
-        message: errors.join(", ")  
+      const errors = Object.values(err.errors).map((e) => e.message);
+      return res.status(400).json({
+        message: errors.join(", "),
       });
     }
-    
+  
+    return res.status(400).json({ message: err.message || "Something went wrong" });
   }
 });
 //get user by email

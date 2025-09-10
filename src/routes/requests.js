@@ -3,9 +3,12 @@ const requestsRouter = express.Router();
 const { userAuth } = require("../middlewares/auth");
 const ConnectionRequest = require("../models/connections");
 const User = require("../models/user");
-const sendEmail = require("../utils/sendEmail.js");
-//const sendEmail = require("../utils/sendEmailforInterest");
+const {
+  emailParamsForRequestAccepted,
+  emailParamsForInterestSent,
+} = require("../utils/emailParams.js");
 
+require("dotenv").config();
 
 requestsRouter.post("/send/:status/:toUserId", userAuth, async (req, res) => {
   try {
@@ -48,23 +51,24 @@ requestsRouter.post("/send/:status/:toUserId", userAuth, async (req, res) => {
       toUserId,
       status,
     });
-    if (status === "interested"){
-    try {
-      const emailRes = await sendEmail.run();
-    } catch (emailErr) {
-      console.error("SES email failed:", emailErr);
+    const connection = await newConnectionRequest.save();
+
+    if (status === "interested" && connection) {
+      try {
+        const emailRes = await SendEmailCommand(
+          emailParamsForInterestSent(toUser?.emailId, user?.firstName)
+        );
+      } catch (emailErr) {
+        console.error("SES email failed:", emailErr);
+      }
     }
-  }
-    await newConnectionRequest.save();
 
     // Send email (optional SES errors won't break the route)
-  
 
     res.json({
       message: `${user.firstName} sent request`,
       data: newConnectionRequest,
     });
-
   } catch (err) {
     console.error(err);
     res.status(500).send("Server Error: " + err.message);
@@ -80,8 +84,13 @@ requestsRouter.post(
       const { status, requestId } = req.params;
       const ALlOWED_STATUS = ["accepted", "rejected"];
       if (!ALlOWED_STATUS.includes(status)) {
-       return res.status(500).json({ message: "status is not valid " + status });
+        return res
+          .status(500)
+          .json({ message: "status is not valid " + status });
       }
+      const toUser = await User.findOne({
+        _id: requestId,
+      });
       const connectionRequest = await ConnectionRequest.findOne({
         _id: requestId,
         toUserId: loggedInUser._id,
@@ -92,8 +101,20 @@ requestsRouter.post(
       }
 
       connectionRequest.status = status;
-      await connectionRequest.save();
-      res.json({message:"requested accepted",data:connectionRequest });
+      const connection = await connectionRequest.save();
+      if (status === "accepted" && connection) {
+        try {
+          const emailRes = await SendEmailCommand(
+            emailParamsForRequestAccepted(
+              toUser?.emailId,
+              loggedInUser?.firstName
+            )
+          );
+        } catch (emailErr) {
+          console.error("SES email failed:", emailErr);
+        }
+      }
+      res.json({ message: "requested accepted", data: connectionRequest });
     } catch (err) {
       res.status(500).send("Server Error: " + err.message);
     }
@@ -116,7 +137,9 @@ requestsRouter.post("/sendAll/:status", userAuth, async (req, res) => {
     // fetch all users except logged in user
     const allUsers = await User.find({ _id: { $ne: fromUserId } });
     if (!allUsers.length) {
-      return res.status(404).json({ message: "No users found to send requests" });
+      return res
+        .status(404)
+        .json({ message: "No users found to send requests" });
     }
 
     let createdRequests = [];
