@@ -2,13 +2,15 @@ const express = require("express");
 const requestsRouter = express.Router();
 const { userAuth } = require("../middlewares/auth");
 const ConnectionRequest = require("../models/connections");
+const { SendEmailCommand } = require("@aws-sdk/client-ses");
 const User = require("../models/user");
+require("dotenv").config();
 const {
   emailParamsForRequestAccepted,
   emailParamsForInterestSent,
-} = require("../utils/emailParams.js");
+} = require("../utils/sesClient.js");
+const { sesClient } = require("../utils/sesClient.js");
 
-require("dotenv").config();
 
 requestsRouter.post("/send/:status/:toUserId", userAuth, async (req, res) => {
   try {
@@ -53,10 +55,10 @@ requestsRouter.post("/send/:status/:toUserId", userAuth, async (req, res) => {
     });
     const connection = await newConnectionRequest.save();
 
-    if (status === "interested" && connection) {
+    if (status === "interested" && connection && toUser?.verified ) {
       try {
-        const emailRes = await SendEmailCommand(
-          emailParamsForInterestSent(toUser?.emailId, user?.firstName)
+        const emailRes = await sesClient.send(
+          new SendEmailCommand(emailParamsForInterestSent(toUser?.emailId, toUser?.firstName, user?.firstName))
         );
       } catch (emailErr) {
         console.error("SES email failed:", emailErr);
@@ -88,27 +90,26 @@ requestsRouter.post(
           .status(500)
           .json({ message: "status is not valid " + status });
       }
-      const toUser = await User.findOne({
-        _id: requestId,
-      });
+
       const connectionRequest = await ConnectionRequest.findOne({
         _id: requestId,
         toUserId: loggedInUser._id,
         status: "interested",
       });
+      const toUser = await User.findById(connectionRequest.fromUserId); 
+
       if (!connectionRequest) {
         return res.status(500).json({ message: "connection doesnt exist " });
       }
 
       connectionRequest.status = status;
       const connection = await connectionRequest.save();
-      if (status === "accepted" && connection) {
+      if (status === "accepted" && connection && toUser?.verified) {
         try {
-          const emailRes = await SendEmailCommand(
-            emailParamsForRequestAccepted(
-              toUser?.emailId,
-              loggedInUser?.firstName
-            )
+          const emailRes = await sesClient.send(
+            new SendEmailCommand(emailParamsForRequestAccepted(toUser?.emailId, toUser?.firstName,
+              loggedInUser?.firstName))
+          
           );
         } catch (emailErr) {
           console.error("SES email failed:", emailErr);

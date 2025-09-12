@@ -69,6 +69,8 @@ const userSchema = new Schema(
     otpExpiry: { type: Date },
     otpAttempts: { type: Number, default: 0 }, // for OTP entry attempts
     resendAttempts: { type: Number, default: 0 }, // for resend OTP attempts
+    isAdmin: { type: Boolean, default: false }, // admin flag
+
   },
   { timestamps: true }
 );

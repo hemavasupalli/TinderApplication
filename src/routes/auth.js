@@ -4,7 +4,7 @@ require("dotenv").config();
 
 const { SendEmailCommand } = require("@aws-sdk/client-ses");
 
-const { sesClient } = require("../utils/sesClient.js");
+const { sesClient, emailParamsForAdminWelcome } = require("../utils/sesClient.js");
 const {
   validateSignUpData,
   validateForgotPasswordData,
@@ -16,11 +16,12 @@ const { dummyUsers } = require("./dummy");
 const {
   emailParamsForOTP,
   emailParamsForSignup,
-} = require("../utils/emailParams.js");
+} = require("../utils/sesClient.js");
 const {
 
   sanitizeUser,
 } = require("../utils/validations.js");
+const ConnectionRequest = require("../models/connections.js");
 authRouter.use(express.json());
 
 // Signup
@@ -52,17 +53,20 @@ authRouter.post("/signup", async (req, res) => {
     });
     const token = await user.getJWT();
     res.cookie("token", token, { expires: new Date(Date.now() + 3600000) });
-    await user.save();
-    await sesClient.send(
-      new SendEmailCommand(emailParamsForOTP(emailId, otp, firstName))
-    );
-
+     const savedUser = await user.save();
+     if(savedUser){
+      await sesClient.send(
+        new SendEmailCommand(emailParamsForOTP(emailId, otp, firstName))
+      );
+     }
     res.json({
       message: "OTP has been sent to your email.",
       data: { emailId: user.emailId },
     });
   } catch (err) {
     console.error("Signup error:", err);
+    await User.findByIdAndDelete(savedUser._id);
+    res.cookie("token", null, { expires: new Date(Date.now()) })
     res.status(400).send("Error during signup: " + err.message);
   }
 });
@@ -124,10 +128,35 @@ authRouter.post("/verifyOTP", async (req, res) => {
       res.cookie("token", token, { expires: new Date(Date.now() + 3600000) });
       const savedUser = await user.save();
 
+      if(savedUser){
+        const adminUser = await User.findOne({ isAdmin: true });
+        console.log("admin", adminUser)
+        if (adminUser) {
+          const newRequest = new ConnectionRequest({
+            fromUserId: adminUser._id,
+            toUserId: user._id,
+            status: "interested", // pending request
+          });
+          await newRequest.save();
+    
+          try {
+            await sesClient.send(
+              new SendEmailCommand(
+                emailParamsForAdminWelcome(
+                  user.emailId,
+                  user.firstName
+                )
+              )
+            );
+          } catch (err) {
+            console.error("SES email failed:", err);
+          }
+        }
   
-      await sesClient.send(
-        new SendEmailCommand(emailParamsForSignup(emailId, user.firstName))
-      );
+    }
+      // await sesClient.send(
+      //   new SendEmailCommand(emailParamsForSignup(emailId, user.firstName))
+      // );
 
       res.json({
         success: true,
@@ -137,6 +166,8 @@ authRouter.post("/verifyOTP", async (req, res) => {
     }
   } catch (err) {
     console.error("Verification error:", err);
+    await User.findByIdAndDelete(savedUser._id);
+    res.cookie("token", null, { expires: new Date(Date.now()) })
     res
       .status(500)
       .json({
