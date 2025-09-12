@@ -24,137 +24,119 @@ const ConnectionRequest = require("../models/connections");
 const UnverifiedUser = require("../models/unverifiedUser.js");
 authRouter.use(express.json());
 
-// Signup
+
 authRouter.post("/signup", async (req, res) => {
-  let savedUser; // declare here so it's accessible in catch
   try {
     validateSignUpData(req);
     const { firstName, lastName, emailId, password } = req.body;
 
     const passwordHash = await bcrypt.hash(password, 10);
+
+    // Check if user already verified
     const existingUser = await User.findOne({ emailId });
     if (existingUser) {
       return res.status(400).json({
-        message:
-          "Email is already registered. Please login or use another email.",
+        message: "Email is already registered. Please login or use another email.",
+      });
+    }
+
+    // Check if already in unverified
+    const existingUnverified = await UnverifiedUser.findOne({ emailId });
+    if (existingUnverified) {
+      return res.status(400).json({
+        message: "Signup already in progress. Please verify your email.",
       });
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins expiry
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
-    const user = new User({
-      firstName,
-      lastName,
-      emailId,
-      password: passwordHash,
-      verified: false,
-      otp,
-      otpExpiry,
-    });
-
-    savedUser = await user.save(); // assign here
     const unverifiedUser = new UnverifiedUser({
       firstName,
       lastName,
       emailId,
-      password,
-      verified: false,
+      password: passwordHash,
       otp,
       otpExpiry,
     });
-    await unverifiedUser.save()
-    if (savedUser) {
-      await sesClient.send(
-        new SendEmailCommand(emailParamsForOTP(emailId, otp, firstName))
-      );
-    }
+
+    await unverifiedUser.save();
+
+    // Send OTP email
+    await sesClient.send(
+      new SendEmailCommand(emailParamsForOTP(emailId, otp, firstName))
+    );
 
     res.json({
       message: "OTP has been sent to your email.",
-      data: { emailId: user.emailId },
+      data: { emailId },
     });
   } catch (err) {
     console.error("Signup error:", err);
-  
-    if (savedUser) {
-      await User.findByIdAndDelete(savedUser._id);
-    }
-
-    res.cookie("token", null, { expires: new Date(Date.now()) });
     res.status(400).send("Error during signup: " + err.message);
   }
 });
 
 
-// Verify OTP
 authRouter.post("/verifyOTP", async (req, res) => {
   try {
     const { emailId, otp } = req.body;
-    const user = await User.findOne({ emailId });
 
-    if (!user)
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    if (user.verified)
-      return res
-        .status(400)
-        .json({ success: false, message: "User already verified" });
+    const unverifiedUser = await UnverifiedUser.findOne({ emailId });
+    if (!unverifiedUser)
+      return res.status(404).json({ success: false, message: "Signup not found or expired" });
 
     // Check OTP
-    if (user.otp !== otp) {
-      const attempts = (user.otpAttempts || 0) + 1;
+    if (unverifiedUser.otp !== otp) {
+      const attempts = (unverifiedUser.otpAttempts || 0) + 1;
       if (attempts >= 3) {
-        await User.deleteOne({ _id: user._id });
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: "Maximum OTP attempts exceeded. Please sign up again.",
-          });
-      }
-      await User.updateOne({ _id: user._id }, { otpAttempts: attempts });
-      return res
-        .status(400)
-        .json({
+        await UnverifiedUser.deleteOne({ _id: unverifiedUser._id });
+        return res.status(400).json({
           success: false,
-          message: `Invalid OTP. You have ${3 - attempts} attempts left.`,
+          message: "Maximum OTP attempts exceeded. Please sign up again.",
         });
+      }
+      await UnverifiedUser.updateOne({ _id: unverifiedUser._id }, { otpAttempts: attempts });
+      return res.status(400).json({
+        success: false,
+        message: `Invalid OTP. You have ${3 - attempts} attempts left.`,
+      });
     }
 
     // Check expiry
-    if (user.otpExpiry < new Date()) {
-      await User.deleteOne({ _id: user._id });
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "OTP expired. User deleted. Please sign up again.",
-        });
+    if (unverifiedUser.otpExpiry < new Date()) {
+      await UnverifiedUser.deleteOne({ _id: unverifiedUser._id });
+      return res.status(400).json({
+        success: false,
+        message: "OTP expired. Please sign up again.",
+      });
     }
 
-    if (user.otp === otp) {
-      user.verified = true;
-      user.otp = undefined;
-      user.otpExpiry = undefined;
-      user.otpAttempts = undefined;
-      user.isOnline = true;
-      const token = await user.getJWT();
-      res.cookie("token", token, { expires: new Date(Date.now() + 3600000) });
-      const savedUser = await user.save();
+    // ✅ Create real user
+    const user = new User({
+      firstName: unverifiedUser.firstName,
+      lastName: unverifiedUser.lastName,
+      emailId: unverifiedUser.emailId,
+      password: unverifiedUser.password,
+      verified: true,
+      isOnline: true,
+    });
 
-      if(savedUser){
-        const adminUser = await User.findOne({ isAdmin: true });
-        console.log("admin", adminUser)
-        if (adminUser) {
-          const newRequest = new ConnectionRequest({
-            fromUserId: adminUser._id,
-            toUserId: user._id,
-            status: "interested", // pending request
-          });
-          await newRequest.save();
-    
+    const savedUser = await user.save();
+    await UnverifiedUser.deleteOne({ _id: unverifiedUser._id }); // cleanup
+
+    const token = await user.getJWT();
+    res.cookie("token", token, { expires: new Date(Date.now() + 3600000) });
+
+    // Optional: auto-send connection request from admin
+    const adminUser = await User.findOne({ isAdmin: true });
+    if (adminUser) {
+      const newRequest = new ConnectionRequest({
+        fromUserId: adminUser._id,
+        toUserId: user._id,
+        status: "interested",
+      });
+      await newRequest.save();
           try {
             await sesClient.send(
               new SendEmailCommand(
@@ -168,31 +150,20 @@ authRouter.post("/verifyOTP", async (req, res) => {
             console.error("SES email failed:", err);
           }
         }
-  
-    }
-      // await sesClient.send(
-      //   new SendEmailCommand(emailParamsForSignup(emailId, user.firstName))
-      // );
 
-      res.json({
-        success: true,
-        message: "Email verified successfully!",
-        data: sanitizeUser(savedUser),
-      });
-    }
+    res.json({
+      success: true,
+      message: "Email verified successfully!",
+      data: sanitizeUser(savedUser),
+    });
   } catch (err) {
     console.error("Verification error:", err);
-    if(savedUser){
-    await User.findByIdAndDelete(savedUser._id);
-    }
-    res.cookie("token", null, { expires: new Date(Date.now()) })
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Verification failed",
-        error: err.message,
-      });
+    res.cookie("token", null, { expires: new Date(Date.now()) });
+    res.status(500).json({
+      success: false,
+      message: "Verification failed",
+      error: err.message,
+    });
   }
 });
 
