@@ -26,6 +26,7 @@ authRouter.use(express.json());
 
 // Signup
 authRouter.post("/signup", async (req, res) => {
+  let savedUser; // declare here so it's accessible in catch
   try {
     validateSignUpData(req);
     const { firstName, lastName, emailId, password } = req.body;
@@ -51,25 +52,33 @@ authRouter.post("/signup", async (req, res) => {
       otp,
       otpExpiry,
     });
+
     const token = await user.getJWT();
     res.cookie("token", token, { expires: new Date(Date.now() + 3600000) });
-     const savedUser = await user.save();
-     if(savedUser){
+
+    savedUser = await user.save(); // assign here
+    if (savedUser) {
       await sesClient.send(
         new SendEmailCommand(emailParamsForOTP(emailId, otp, firstName))
       );
-     }
+    }
+
     res.json({
       message: "OTP has been sent to your email.",
       data: { emailId: user.emailId },
     });
   } catch (err) {
     console.error("Signup error:", err);
-    await User.findByIdAndDelete(savedUser._id);
-    res.cookie("token", null, { expires: new Date(Date.now()) })
+
+    if (savedUser) {
+      await User.findByIdAndDelete(savedUser._id);
+    }
+
+    res.cookie("token", null, { expires: new Date(Date.now()) });
     res.status(400).send("Error during signup: " + err.message);
   }
 });
+
 
 // Verify OTP
 authRouter.post("/verifyOTP", async (req, res) => {
