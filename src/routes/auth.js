@@ -15,13 +15,13 @@ const { userAuth } = require("../middlewares/auth");
 const { dummyUsers } = require("./dummy");
 const {
   emailParamsForOTP,
-  emailParamsForSignup,
 } = require("../utils/sesClient.js");
 const {
 
   sanitizeUser,
 } = require("../utils/validations.js");
-const ConnectionRequest = require("../models/connections.js");
+const ConnectionRequest = require("../models/connections");
+const UnverifiedUser = require("../models/unverifiedUser.js");
 authRouter.use(express.json());
 
 // Signup
@@ -53,10 +53,17 @@ authRouter.post("/signup", async (req, res) => {
       otpExpiry,
     });
 
-    const token = await user.getJWT();
-    res.cookie("token", token, { expires: new Date(Date.now() + 3600000) });
-
     savedUser = await user.save(); // assign here
+    const unverifiedUser = new UnverifiedUser({
+      firstName,
+      lastName,
+      emailId,
+      password,
+      verified: false,
+      otp,
+      otpExpiry,
+    });
+    await unverifiedUser.save()
     if (savedUser) {
       await sesClient.send(
         new SendEmailCommand(emailParamsForOTP(emailId, otp, firstName))
@@ -69,7 +76,7 @@ authRouter.post("/signup", async (req, res) => {
     });
   } catch (err) {
     console.error("Signup error:", err);
-
+  
     if (savedUser) {
       await User.findByIdAndDelete(savedUser._id);
     }
