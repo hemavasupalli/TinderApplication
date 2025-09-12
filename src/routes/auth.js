@@ -175,7 +175,9 @@ authRouter.post("/verifyOTP", async (req, res) => {
     }
   } catch (err) {
     console.error("Verification error:", err);
+    if(savedUser){
     await User.findByIdAndDelete(savedUser._id);
+    }
     res.cookie("token", null, { expires: new Date(Date.now()) })
     res
       .status(500)
